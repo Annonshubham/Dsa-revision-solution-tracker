@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "Problem": {
+      "title": "Problem",
+      "description": "A DSA problem to track and revise",
+      "type": "object",
+      "properties": {
+        "questionNumber": { "type": "string", "description": "User-defined question identifier" },
+        "title": { "type": "string", "description": "The title of the problem" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "statement": { "type": "string", "description": "The full text of the problem statement" },
+        "link": { "type": "string", "format": "uri" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "revisionStatus": { "type": "string", "enum": ["Not Revised", "Revised", "Strong"] },
+        "lastRevisedDate": { "type": "string", "format": "date-time" },
+        "nextRevisionDate": { "type": "string", "format": "date-time" },
+        "mistakes": { "type": "string", "description": "Mistakes I made" },
+        "learnings": { "type": "string", "description": "Key learnings" },
+        "userId": { "type": "string", "description": "The UID of the owner" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isBookmarked": { "type": "boolean" }
+      },
+      "required": ["questionNumber", "title", "difficulty", "revisionStatus", "userId"]
+    },
+    "Solution": {
+      "title": "Solution",
+      "description": "An approach or solution to a problem",
+      "type": "object",
+      "properties": {
+        "problemId": { "type": "string" },
+        "title": { "type": "string", "description": "e.g., 'My Approach', 'Optimal'" },
+        "code": { "type": "string" },
+        "explanation": { "type": "string" },
+        "timeComplexity": { "type": "string" },
+        "spaceComplexity": { "type": "string" },
+        "order": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["problemId", "title", "code", "userId"]
+    }
+  },
+  "firestore": {
+    "/problems/{problemId}": {
+      "schema": "Problem",
+      "description": "Collection of DSA problems"
+    },
+    "/problems/{problemId}/solutions/{solutionId}": {
+      "schema": "Solution",
+      "description": "Sub-collection of solutions for a specific problem"
+    }
+  }
+}

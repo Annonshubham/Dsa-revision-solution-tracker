@@ -1,0 +1,124 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: problems
+    // Document ID: auto-generated or problemId
+    // Fields:
+    //   - questionNumber: string (required)
+    //   - title: string (required, < 200 chars)
+    //   - difficulty: string (required, Easy/Medium/Hard)
+    //   - statement: string (optional, < 10000 chars)
+    //   - link: string (optional, URL)
+    //   - tags: list (optional, < 50 items)
+    //   - revisionStatus: string (required, Not Revised/Revised/Strong)
+    //   - lastRevisedDate: string (optional, ISO8601)
+    //   - nextRevisionDate: string (optional, ISO8601)
+    //   - mistakes: string (optional, < 5000 chars)
+    //   - learnings: string (optional, < 5000 chars)
+    //   - userId: string (required, immutable)
+    //   - createdAt: string (required, immutable)
+    //   - updatedAt: string (required)
+    //   - isBookmarked: bool (optional)
+    //
+    // Sub-collection: problems/{problemId}/solutions
+    // Fields:
+    //   - problemId: string (required)
+    //   - title: string (required, < 200 chars)
+    //   - code: string (required, < 50000 chars)
+    //   - explanation: string (optional, < 10000 chars)
+    //   - timeComplexity: string (optional, < 100 chars)
+    //   - spaceComplexity: string (optional, < 100 chars)
+    //   - order: number (required)
+    //   - userId: string (required, immutable)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "shubhamsingh121120@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https?://.*") || url == "");
+    }
+
+    function isValidDate(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidProblem(data) {
+      return data.keys().hasAll(['questionNumber', 'title', 'difficulty', 'revisionStatus', 'userId', 'createdAt', 'updatedAt']) &&
+             isValidString(data.questionNumber, 50) &&
+             isValidString(data.title, 200) &&
+             data.difficulty in ['Easy', 'Medium', 'Hard'] &&
+             data.revisionStatus in ['Not Revised', 'Revised', 'Strong'] &&
+             (!('link' in data) || isValidUrl(data.link)) &&
+             (!('statement' in data) || isValidString(data.statement, 10000)) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 50)) &&
+             (!('mistakes' in data) || isValidString(data.mistakes, 5000)) &&
+             (!('learnings' in data) || isValidString(data.learnings, 5000)) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidSolution(data) {
+      return data.keys().hasAll(['problemId', 'title', 'code', 'userId', 'order']) &&
+             isValidString(data.title, 200) &&
+             isValidString(data.code, 50000) &&
+             (!('explanation' in data) || isValidString(data.explanation, 10000)) &&
+             data.userId == request.auth.uid;
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.role == 'user';
+      allow update: if isOwner(userId) && (request.resource.data.role == resource.data.role);
+    }
+
+    match /problems/{problemId} {
+      allow list: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidProblem(request.resource.data);
+      allow update: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin()) && 
+                    isValidProblem(request.resource.data) &&
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      match /solutions/{solutionId} {
+        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow create: if isAuthenticated() && isValidSolution(request.resource.data);
+        allow update: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid || isAdmin()) && 
+                      isValidSolution(request.resource.data) &&
+                      request.resource.data.userId == resource.data.userId;
+        allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      }
+    }
+  }
+}
