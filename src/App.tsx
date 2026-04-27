@@ -70,7 +70,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <UserProvider>
-      <Router>
+      <Router basename="/Dsa-revision-solution-tracker/">
         <AppRoutes />
       </Router>
     </UserProvider>
