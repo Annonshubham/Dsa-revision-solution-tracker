@@ -138,32 +138,36 @@ export async function signInWithEmail(email: string, password: string): Promise<
   });
 }
 
-// Sign in with Google (simulated - creates a demo account)
+// Sign in with Google (simulated - creates a persistent demo account)
 export async function signInWithGoogle(): Promise<LocalUser> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const uid = generateUID();
-      const email = `google_${uid}@google.local`;
-      const displayName = 'Google User';
+      // Check if user already has a Google account
+      const existingUser = localStorage.getItem('dsa_google_user');
+      
+      let googleUser;
+      if (existingUser) {
+        // Use existing Google account
+        googleUser = JSON.parse(existingUser);
+      } else {
+        // Create new persistent Google account (only once)
+        const uid = generateUID();
+        googleUser = {
+          uid,
+          email: `google_${uid}@google.local`,
+          displayName: 'Google User',
+          emailVerified: true,
+          isAnonymous: false
+        };
+        localStorage.setItem('dsa_google_user', JSON.stringify(googleUser));
+      }
 
       // Create session
       const sessionToken = generateUID();
       localStorage.setItem(SESSION_KEY, sessionToken);
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify({
-        uid,
-        email,
-        displayName,
-        emailVerified: true,
-        isAnonymous: false
-      }));
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(googleUser));
 
-      resolve({
-        uid,
-        email,
-        displayName,
-        emailVerified: true,
-        isAnonymous: false
-      });
+      resolve(googleUser);
     }, 500);
   });
 }

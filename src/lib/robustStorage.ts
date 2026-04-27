@@ -1,11 +1,13 @@
 // Advanced Data Persistence System with IndexedDB + LocalStorage Backup
 // Provides robust data storage like Netflix/Amazon with backup and recovery
+// Data is stored per-user to maintain separate solutions for each user
 
 import { Problem, Solution } from '../types';
+import { getCurrentUser } from './localAuth';
 
 // Database Configuration
 const DB_NAME = 'DSA_Tracker_DB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped version for user-scoped storage
 const STORE_NAMES = {
   PROBLEMS: 'problems',
   SOLUTIONS: 'solutions',
@@ -34,6 +36,17 @@ interface BackupRecord {
   problemsCount: number;
   size: number;
   type: 'auto' | 'manual';
+}
+
+// Get current user ID for scoped storage
+function getCurrentUserId(): string {
+  const user = getCurrentUser();
+  return user?.uid || 'anonymous';
+}
+
+// Get user-scoped key
+function getUserScopedKey(baseKey: string): string {
+  return `${baseKey}_${getCurrentUserId()}`;
 }
 
 /**
@@ -303,7 +316,7 @@ function backupProblemsToLocalStorage(problems: Problem[]): void {
       timestamp: new Date().toISOString(),
       hash: calculateDataHash(problems),
     };
-    localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+    localStorage.setItem(getUserScopedKey(BACKUP_KEY), JSON.stringify(backup));
   } catch (error) {
     console.error('Error creating localStorage backup:', error);
   }
@@ -314,7 +327,7 @@ function backupProblemsToLocalStorage(problems: Problem[]): void {
  */
 function loadProblemsFromBackup(): Problem[] {
   try {
-    const backup = localStorage.getItem(BACKUP_KEY);
+    const backup = localStorage.getItem(getUserScopedKey(BACKUP_KEY));
     if (!backup) return [];
     
     const parsed = JSON.parse(backup);
